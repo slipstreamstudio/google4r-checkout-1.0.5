@@ -127,6 +127,10 @@ module Google4R #:nodoc:
             when 'request-received'
                 serial_number = xml_doc.elements['/request-received'].attributes['serial-number']
                 return serial_number
+            when 'subscription-request-received'
+              serial_number = xml_doc.root.elements['/subscription-request-received'].attributes['serial-number']
+              new_google_order_number = xml_doc.root.elements['/subscription-request-received'].attributes['new-google-order-number']
+              return SubscriptionRequestReceivedResponse.new(serial_number, new_google_order_number)
             else
                 raise "Unknown response:\n--\n#{xml_doc.to_s}\n--"
             end
@@ -307,6 +311,28 @@ module Google4R #:nodoc:
         return @redirect_url
       end
     end
+    
+    # SubscriptionRequestReceivedResponse instances are returned when a 
+    # CreateOrderRecurrenceRequestCommand is successfully processed by Google Checkout.
+    class SubscriptionRequestReceivedResponse
+      # The serial number of the <subscription-request-received> response.
+      attr_reader :serial_number
+      
+      # The new order number that was generated for this request.
+      attr_reader :new_google_order_number
+      
+      # Create a new SubscriptionRequestReceivedResponse with the given serial number and Google
+      # order number.  Do not create SubscriptionRequestReceivedResponse instances in your own
+      # code.  Google4R creates them for you.
+      def initialize(serial_number, new_google_order_number)
+        @serial_number = serial_number
+        @new_google_order_number = new_google_order_number
+      end
+      
+      def to_s
+        return @new_google_order_number
+      end
+    end
 
     #
     # The ChargeOrderCommand instructs Google Checkout to charge the buyer for a
@@ -436,6 +462,25 @@ module Google4R #:nodoc:
         UnarchiveOrderCommandXmlGenerator.new(self).generate
       end
     end
+    
+    # The <create-order-recurrence-request> tag contains a request to charge a customer for one or more items in a subscription.
+    class CreateOrderRecurrenceRequestCommand < Command
+      # The ID that uniquely identifies this order
+      attr_accessor :google_order_number
+      
+      attr_reader :shopping_cart
+      
+      # Initialize a new CreateOrderRecurrenceRequestCommand with a fresh ShoppingCart.
+      def initialize(frontend)
+        super(frontend)
+        @shopping_cart = ShoppingCart.new(self)
+      end
+      
+      def to_xml
+        CreateOrderRecurrenceRequestCommandXmlGenerator.new(self).generate
+      end
+    end
+    
     
     #
     # XML API Commands for Line-item Shipping
